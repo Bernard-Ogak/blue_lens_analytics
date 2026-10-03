@@ -1,0 +1,25 @@
+{
+	"name": "blue-lens-analytics",
+	"private": true,
+	"description": "Build and test tooling for Blue Lens Analytics.",
+	"license": "GPL-2.0-or-later",
+	"scripts": {
+		"build": "npm run build:tracker",
+		"build:tracker": "esbuild assets/tracker/src/tracker.js assets/tracker/src/auto.js assets/tracker/src/capture.js --minify --target=es2017 --legal-comments=inline --outdir=assets/tracker/build --out-extension:.js=.min.js && node scripts/size-check.js",
+		"lint:js": "eslint assets/tracker/src assets/admin/js tests/js scripts",
+		"test:js": "jest"
+	},
+	"devDependencies": {
+		"@wordpress/eslint-plugin": "^22.0.0",
+		"esbuild": "^0.25.0",
+		"eslint": "^8.57.0",
+		"jest": "^29.7.0",
+		"jsdom": "^24.1.0"
+	},
+	"jest": {
+		"testEnvironment": "node",
+		"testMatch": [
+			"<rootDir>/tests/js/**/*.test.js"
+		]
+	}
+}

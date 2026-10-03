@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Blue Lens Analytics">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1a8cff"/>
+      <stop offset="1" stop-color="#0b3f86"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#g)"/>
+  <g fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="114" cy="114" r="58"/>
+    <path d="M157 157l43 43"/>
+    <path d="M86 132v-14M110 132v-30M134 132v-46" stroke-width="14"/>
+  </g>
+</svg>

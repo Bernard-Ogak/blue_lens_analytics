@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<phpunit
+	bootstrap="tests/bootstrap.php"
+	backupGlobals="false"
+	colors="true"
+	beStrictAboutTestsThatDoNotTestAnything="true"
+	convertErrorsToExceptions="true"
+	convertNoticesToExceptions="true"
+	convertWarningsToExceptions="true"
+	convertDeprecationsToExceptions="true"
+>
+	<testsuites>
+		<testsuite name="integration">
+			<directory suffix="Test.php">./tests/Integration</directory>
+		</testsuite>
+	</testsuites>
+	<groups>
+		<exclude>
+			<!-- Drops real tables; run explicitly with: vendor/bin/phpunit --group uninstall -->
+			<group>uninstall</group>
+		</exclude>
+	</groups>
+</phpunit>

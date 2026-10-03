@@ -1,0 +1,21 @@
+# Normalise line endings in the repository.
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.mmdb binary
+
+# Keep repository-only files out of `git archive` exports.
+/docs export-ignore
+/bin export-ignore
+/tests export-ignore
+/.wordpress-org export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore
+/.distignore export-ignore
+/.eslintrc.json export-ignore
+/phpunit.xml.dist export-ignore
+/phpcs.xml.dist export-ignore
+/phpstan.neon.dist export-ignore
+/README.md export-ignore
+/CHANGELOG.md export-ignore

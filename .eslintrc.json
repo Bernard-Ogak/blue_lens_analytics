@@ -1,0 +1,21 @@
+{
+	"root": true,
+	"overrides": [
+		{
+			"files": [ "assets/tracker/src/**/*.js" ],
+			"extends": [ "plugin:@wordpress/eslint-plugin/es5" ],
+			"env": { "browser": true }
+		},
+		{
+			"files": [ "assets/admin/js/**/*.js" ],
+			"extends": [ "plugin:@wordpress/eslint-plugin/recommended" ],
+			"env": { "browser": true },
+			"globals": { "wp": "readonly" }
+		},
+		{
+			"files": [ "tests/js/**/*.js", "scripts/**/*.js" ],
+			"extends": [ "plugin:@wordpress/eslint-plugin/recommended" ],
+			"env": { "node": true, "jest": true }
+		}
+	]
+}

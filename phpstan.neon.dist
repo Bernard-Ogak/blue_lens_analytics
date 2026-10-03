@@ -1,0 +1,11 @@
+parameters:
+	level: 6
+	paths:
+		- blue-lens-analytics.php
+		- uninstall.php
+		- src
+	bootstrapFiles:
+		- tests/phpstan-bootstrap.php
+	# Action Scheduler is loaded from vendor at runtime.
+	scanDirectories:
+		- vendor/woocommerce/action-scheduler

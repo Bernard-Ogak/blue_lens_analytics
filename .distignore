@@ -1,0 +1,17 @@
+# Files excluded from release zips (used by `wp dist-archive` and deploy scripts).
+# package.json, scripts/ and assets/tracker/src/ are kept so the minified scripts can be rebuilt
+# from the included source, as WordPress.org guideline 4 requires.
+.git
+.github
+.wordpress-org
+.gitignore
+.distignore
+.eslintrc.json
+node_modules
+tests
+package-lock.json
+composer.lock
+phpunit.xml.dist
+phpcs.xml.dist
+phpstan.neon.dist
+.phpunit.result.cache
