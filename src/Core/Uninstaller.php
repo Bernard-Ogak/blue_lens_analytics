@@ -150,6 +150,7 @@ final class Uninstaller {
 		foreach ( self::OPTIONS as $option ) {
 			delete_option( $option );
 		}
+		delete_site_transient( GitHubUpdater::CACHE );
 
 		$wpdb->query(
 			$wpdb->prepare(

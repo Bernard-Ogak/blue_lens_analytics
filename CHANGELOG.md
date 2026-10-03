@@ -2,6 +2,19 @@
 
 All notable changes to Blue Lens Analytics. The format follows [Keep a Changelog](https://keepachangelog.com/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.5.1] — 2026-10-03
+
+### Added
+- Updates from GitHub Releases. The new `Update URI` header makes WordPress skip WordPress.org for this plugin, and `Core\GitHubUpdater` answers the `update_plugins_github.com` filter with the latest release of `Bernard-Ogak/blue_lens_analytics` that has `blue-lens-analytics.zip` attached. Updates then appear on **Dashboard → Updates** and the Plugins screen, with one-click and automatic updates and release notes under **View details**. The release is cached for 12 hours (1 hour after a failed check) and **Check again** refreshes it. Filter `blue_lens_github_updates` (return `false`) turns the check off. No site data is sent. Sites on 0.5.0 or earlier install 0.5.1 once by uploading the ZIP.
+
+### Fixed
+- Reports showed no data for days on which the hourly summary job (`blue_lens_aggregate`) did not run at all, for example a quiet day with no visits to trigger WP-Cron, a stopped server cron or the site being offline. The job only rebuilt today and yesterday, and the back-fill had already passed those days, so they stayed empty and the last day the job had seen stayed partial. The job now also rebuilds every day since its previous run, up to the last 31 days. Covered by `ReportsTest::test_hourly_job_rebuilds_days_skipped_since_the_previous_run`.
+
+### Documentation
+- Developer guide: the `blue_lens_aggregate` job description includes the catch-up of skipped days; new "Updates from GitHub" section and `blue_lens_github_updates` filter; the release checklist requires the `blue-lens-analytics.zip` asset name.
+- readme.txt, privacy notes, FAQ and user guide: the GitHub update check is listed as an outside request (it sends no analytics or visitor data).
+- Updated screenshot and documentation: all nine screenshots recaptured from a 0.5.1 install on a test site with generated demo traffic.
+
 ## [0.5.0] — 2026-10-03
 
 ### Added

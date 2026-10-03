@@ -18,8 +18,8 @@ defined( 'ABSPATH' ) || exit;
  * Rebuilds the daily_* tables for a site-local day. Each rebuild deletes and re-inserts the day,
  * so it is idempotent and safe to repeat.
  *
- * Schedule: hourly for today and yesterday; older days are back-filled 14 per run until the
- * first recorded event is reached.
+ * Schedule: hourly for today and yesterday, plus any days skipped since the previous run; older
+ * days are back-filled 14 per run until the first recorded event is reached.
  */
 final class Aggregator implements Hookable {
 
@@ -28,6 +28,7 @@ final class Aggregator implements Hookable {
 	public const BACKFILL_OPTION = 'blue_lens_backfill_cursor';
 
 	private const BACKFILL_DAYS_PER_RUN = 14;
+	private const CATCH_UP_MAX_DAYS     = 31;
 	private const INSERT_CHUNK          = 250;
 
 	/**
@@ -83,9 +84,37 @@ final class Aggregator implements Hookable {
 
 		$this->aggregate_day( $today );
 		$this->aggregate_day( SiteTime::add_days( $today, -1 ) );
+		$this->catch_up( (int) get_option( self::LAST_RUN_OPTION, 0 ), $today );
 		$this->backfill( self::BACKFILL_DAYS_PER_RUN );
 
 		update_option( self::LAST_RUN_OPTION, time(), false );
+	}
+
+	/**
+	 * Rebuilds the days between the previous run and yesterday (at most the last 31). When the job
+	 * has not run for more than a day (no visits to trigger WP-Cron, a broken system cron, the site
+	 * offline), those days were never summarised once complete, and the back-fill cursor has
+	 * already passed them.
+	 *
+	 * @param int    $last_run Unix time of the previous run (0 when unknown).
+	 * @param string $today    Today, site-local Y-m-d.
+	 */
+	private function catch_up( int $last_run, string $today ): void {
+		if ( $last_run <= 0 ) {
+			return;
+		}
+
+		$day       = SiteTime::local_day( gmdate( 'Y-m-d H:i:s', $last_run ) );
+		$yesterday = SiteTime::add_days( $today, -1 );
+		$oldest    = SiteTime::add_days( $yesterday, -self::CATCH_UP_MAX_DAYS );
+		if ( $day < $oldest ) {
+			$day = $oldest;
+		}
+
+		while ( $day < $yesterday ) {
+			$this->aggregate_day( $day );
+			$day = SiteTime::add_days( $day, 1 );
+		}
 	}
 
 	/**

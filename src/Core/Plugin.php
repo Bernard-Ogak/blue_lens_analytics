@@ -178,6 +178,7 @@ final class Plugin {
 		$c->set( AuditReport::class, static fn( Container $c ): AuditReport => new AuditReport( $c->get( SiteAudit::class ) ) );
 		$c->set( AuditController::class, static fn( Container $c ): AuditController => new AuditController( $c->get( SiteAudit::class ), $c->get( AuditReport::class ) ) );
 		$c->set( Jobs::class, static fn(): Jobs => new Jobs() );
+		$c->set( GitHubUpdater::class, static fn(): GitHubUpdater => new GitHubUpdater() );
 
 		// Privacy.
 		$c->set( PiiScrubber::class, static fn(): PiiScrubber => new PiiScrubber() );
@@ -269,6 +270,8 @@ final class Plugin {
 			ReportsController::class,
 			SiteAudit::class,
 			AuditController::class,
+			// Update checks run from cron as well as wp-admin.
+			GitHubUpdater::class,
 		];
 
 		if ( is_admin() ) {

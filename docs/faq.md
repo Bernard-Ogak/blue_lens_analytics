@@ -47,7 +47,7 @@ Never. It records only form IDs, field names reached and whether the form was su
 They are used in memory to create the daily anonymous code, to check your excluded IPs and to look up the approximate location, and then they are discarded. They never reach the database.
 
 **Where is the data stored? Is it sent anywhere?**
-Only in your WordPress database. Nothing is sent to the plugin's authors or to third parties. The optional GeoIP download is the only outgoing connection, and it sends no visitor data.
+Only in your WordPress database. No analytics or visitor data is sent to the plugin's authors or to third parties. The only outgoing connections are the check for new versions on GitHub and the optional GeoIP download, and neither sends visitor data.
 
 ## Tracking
 

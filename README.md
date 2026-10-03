@@ -12,7 +12,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg" alt="License: GPL-2.0-or-later"></a>
   <img src="https://img.shields.io/badge/WordPress-6.4%2B-21759b.svg" alt="WordPress 6.4+">
   <img src="https://img.shields.io/badge/PHP-8.1%2B-777bb4.svg" alt="PHP 8.1+">
-  <img src="https://img.shields.io/badge/version-0.5.0-green.svg" alt="Version 0.5.0">
+  <img src="https://img.shields.io/badge/version-0.5.1-green.svg" alt="Version 0.5.1">
 </p>
 
 <p align="center">
@@ -44,7 +44,7 @@ Blue Lens Analytics records how visitors find your website and what they do on i
 - Crawls your own pages from your server and checks more than 35 factors: broken pages and internal links, redirects, duplicate titles and descriptions, mixed content, missing H1, thin content, image alt text, canonical and noindex tags, structured data, social sharing tags, orphan pages, robots.txt, XML sitemap, HTTPS, soft 404s and more.
 - A site health score, errors, warnings and notices with changes since the last audit, a crawled-pages breakdown and health history.
 - On-Page SEO ideas grouped as strategy, technical SEO, content, user experience, semantic and SERP features, with your **most visited pages listed first**, using your own Blue Lens traffic.
-- Plain-language fixes for every issue, page details with an "Edit in WordPress" link, CSV export, and an optional weekly audit. Nothing is sent to outside services.
+- Plain-language fixes for every issue, page details with an "Edit in WordPress" link, CSV export, and an optional weekly audit. The audit runs on your own server and sends nothing to outside services.
 
 **Local Ads by Bernard reporting**
 

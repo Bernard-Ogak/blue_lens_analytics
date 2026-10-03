@@ -8,10 +8,11 @@ Blue Lens Analytics is designed so you can measure your website while collecting
 
 All analytics data is stored **in your own WordPress database**, in tables named `{prefix}bla_*`. Blue Lens does not send analytics data to the plugin's authors or to any third party.
 
-The only outgoing connections are ones you switch on yourself:
+Outgoing connections:
 
 | Connection | When | Data sent |
 |---|---|---|
+| GitHub API (`api.github.com`) | About twice a day, and on **Check again** under Dashboard → Updates (turn off with the `blue_lens_github_updates` filter) | A request for the latest release, with the plugin version in the user agent. No site address, analytics or visitor data. |
 | MaxMind or DB-IP download server | You enable a GeoIP provider (weekly/monthly) | Your MaxMind account ID and licence key (MaxMind only). No visitor data. |
 
 Future versions will add optional connections (social media APIs, AI sentiment scoring, ad-platform conversion exports). Each will be off by default and documented here.

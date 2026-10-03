@@ -4,7 +4,7 @@ Tags: analytics, privacy, seo audit, cookieless, heatmap
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.5.0
+Stable tag: 0.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Your data is kept unless you enabled "delete data on uninstall" first.
 
 == Changelog ==
 
+= 0.5.1 =
+* Added: updates from GitHub. New releases appear on Dashboard → Updates and the Plugins screen like any other plugin update, with one-click and automatic updates. The check sends no site data and can be turned off with the `blue_lens_github_updates` filter.
+* Fixed: days on which the hourly summary job did not run (no visits to trigger WP-Cron, a stopped server cron, the site offline) were left out of every report. The job now rebuilds the skipped days, up to the last 31, on its next run.
+
 = 0.5.0 =
 * Added: Site Audit with a health score, errors, warnings and notices, crawled pages, internal link checks, site-wide checks (robots.txt, sitemap, HTTPS, search engine visibility, soft 404s) and health history.
 * Added: On-Page SEO ideas by category, and top pages to optimise ranked by real visits.
@@ -144,6 +148,9 @@ Your data is kept unless you enabled "delete data on uninstall" first.
 
 == Upgrade Notice ==
 
+= 0.5.1 =
+Adds updates from GitHub (install this version once by uploading the ZIP; later versions then update from the Plugins screen) and fixes reports missing days on which the hourly summary job did not run.
+
 = 0.5.0 =
 Adds Site Audit, On-Page SEO ideas and Local Ads reporting. Two database tables are added automatically.
 
@@ -155,7 +162,15 @@ Adds form, click, video and heatmap tracking. The database updates automatically
 
 == External services ==
 
-Blue Lens Analytics does not contact any external service by default. Only if a site administrator chooses a GeoIP provider in the settings does it download a location database from one of these services:
+Blue Lens Analytics never sends analytics or visitor data to an external service. By default its only outside request is the check for new versions on GitHub. If a site administrator chooses a GeoIP provider in the settings, it also downloads a location database from that provider.
+
+**GitHub** (update checks)
+
+* What it is for: finding new releases of Blue Lens Analytics so that updates appear on Dashboard → Updates and the Plugins screen, and downloading the release ZIP when you update.
+* What is sent and when: about twice a day, and when you click "Check again" on Dashboard → Updates, your server requests `https://api.github.com/repos/Bernard-Ogak/blue_lens_analytics/releases/latest`. The request carries only the plugin version in its user agent; no site address, analytics or visitor data is sent. GitHub receives your server's IP address, as with any web request. The release ZIP is downloaded from github.com only when an update is installed.
+* To turn it off: `add_filter( 'blue_lens_github_updates', '__return_false' );`
+* Terms: https://docs.github.com/en/site-policy/github-terms/github-terms-of-service
+* Privacy policy: https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement
 
 **MaxMind GeoLite2** (used when `geoip_provider` is set to `maxmind`)
 
@@ -173,7 +188,7 @@ Blue Lens Analytics does not contact any external service by default. Only if a 
 
 == Privacy ==
 
-Blue Lens Analytics stores analytics data only in your WordPress database. It does not store IP addresses, form contents or other directly identifying data, and it sends no data to external services unless you enable an optional GeoIP download. See https://github.com/Bernard-Ogak/blue_lens_analytics/blob/main/docs/privacy.md for full details and privacy-policy template text.
+Blue Lens Analytics stores analytics data only in your WordPress database. It does not store IP addresses, form contents or other directly identifying data, and it sends no analytics or visitor data to external services. Its outside requests are the update check on GitHub and, if you enable it, the GeoIP database download; neither carries visitor data. See https://github.com/Bernard-Ogak/blue_lens_analytics/blob/main/docs/privacy.md for full details and privacy-policy template text.
 
 == Author ==
 

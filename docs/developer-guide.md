@@ -211,6 +211,7 @@ Cookie-authenticated requests need the `X-WP-Nonce` header (`wp_rest` nonce).
 | `blue_lens_audit_issues` | Audit issue catalog: severity, category, title and fix text per code |
 | `blue_lens_audit_site_checks` | Site-wide audit results (code → detail) |
 | `blue_lens_local_ads_tracking` | Whether Local Ads impressions and clicks are recorded (default `true`) |
+| `blue_lens_github_updates` | Whether to check GitHub for new releases (default `true`) |
 
 Example: allow a WPML language domain.
 
@@ -243,7 +244,7 @@ Schema changes are numbered migrations in `src/Core/Migrations`. The applied ver
 
 ## Background jobs
 
-Jobs use Action Scheduler (group `blue-lens`) when available, otherwise WP-Cron. Recurring jobs: `blue_lens_aggregate` (hourly: today, yesterday and 14 days of back-fill), `blue_lens_retention` (daily), `blue_lens_geoip_update` (weekly) and, when `audit_weekly` is on, `blue_lens_audit_weekly`. A running audit queues `blue_lens_audit_step` (one-off, with the run ID) until it finishes. View them under **Tools → Scheduled Actions**, filtered by group `blue-lens`.
+Jobs use Action Scheduler (group `blue-lens`) when available, otherwise WP-Cron. Recurring jobs: `blue_lens_aggregate` (hourly: today, yesterday, any days skipped since the previous run (up to 31) and 14 days of back-fill), `blue_lens_retention` (daily), `blue_lens_geoip_update` (weekly) and, when `audit_weekly` is on, `blue_lens_audit_weekly`. A running audit queues `blue_lens_audit_step` (one-off, with the run ID) until it finishes. View them under **Tools → Scheduled Actions**, filtered by group `blue-lens`.
 
 ## Site audit internals
 
@@ -307,4 +308,10 @@ powershell -ExecutionPolicy Bypass -File bin/build-zip.ps1
 
 `bin/build-zip.ps1` writes `dist/blue-lens-analytics.zip` with a single top-level `blue-lens-analytics/` folder and forward-slash entry names (it does not use `Compress-Archive`, which writes backslashes). It leaves out `docs/`, `bin/`, `dist/`, `tests/`, `.wordpress-org/`, Git files, `README.md`, `CHANGELOG.md`, dev tool configuration, `node_modules/` and `vendor/`. The tracker source (`assets/tracker/src/`) and `package.json` stay in, so the minified scripts can be rebuilt. Without `assets/tracker/build/`, the plugin serves the readable source scripts.
 
-Release checklist: bump the version in the plugin header, `BLA_VERSION`, `readme.txt` (Stable tag and changelog) and `CHANGELOG.md`; run `php -l` on every PHP file; build the ZIP; install it with **Plugins → Add New Plugin → Upload Plugin** on a test site with `WP_DEBUG` on and open every Blue Lens screen.
+Release checklist: bump the version in the plugin header, `BLA_VERSION`, `readme.txt` (Stable tag and changelog) and `CHANGELOG.md`; run `php -l` on every PHP file; build the ZIP; install it with **Plugins → Add New Plugin → Upload Plugin** on a test site with `WP_DEBUG` on and open every Blue Lens screen; tag `vX.Y.Z` and attach the ZIP to a GitHub release. The asset must be named exactly `blue-lens-analytics.zip`: installed sites only offer releases that have it.
+
+### Updates from GitHub
+
+`Core\GitHubUpdater` delivers releases to installed sites. The `Update URI: https://github.com/Bernard-Ogak/blue_lens_analytics` header makes WordPress skip WordPress.org for this plugin and call the `update_plugins_github.com` filter instead; the updater answers it, for its own basename only, with the version from the latest release's `tag_name` (leading `v` removed) and the URL of its `blue-lens-analytics.zip` asset. Core compares versions, so an equal version is listed as up to date and automatic updates can be switched on. `plugins_api` is filtered for the slug `blue-lens-analytics` to show the release notes under **View details**.
+
+The release is read from `https://api.github.com/repos/Bernard-Ogak/blue_lens_analytics/releases/latest` (drafts and pre-releases are never returned) and cached in the site transient `blue_lens_github_release` for 12 hours, or 1 hour after a failure. `?force-check=1` from **Check again** bypasses the cache. Return `false` from `blue_lens_github_updates` to disable the check.

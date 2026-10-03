@@ -111,6 +111,20 @@ final class ReportsTest extends WP_UnitTestCase {
 		$this->assertSame( 3, $this->reports->totals( $this->today, $this->today )['sessions'] );
 	}
 
+	public function test_hourly_job_rebuilds_days_skipped_since_the_previous_run(): void {
+		$day  = SiteTime::add_days( $this->today, -4 );
+		$noon = ( new \DateTimeImmutable( $day . ' 12:00:00', wp_timezone() ) )->getTimestamp();
+		$this->visit( '41.1.1.1', '', 'KE', $noon );
+		$this->visit( '81.2.2.2', '', 'GB', $noon + 60 );
+
+		// The job last ran that morning, before the visits, then did not run again for days.
+		update_option( Aggregator::BACKFILL_OPTION, SiteTime::add_days( $this->today, -30 ), false );
+		update_option( Aggregator::LAST_RUN_OPTION, $noon - 3 * HOUR_IN_SECONDS, false );
+		$this->aggregator->run();
+
+		$this->assertSame( 2, $this->reports->totals( $day, $day )['sessions'] );
+	}
+
 	public function test_dimensions(): void {
 		$this->seed_today();
 

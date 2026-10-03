@@ -2,8 +2,9 @@
 /**
  * Plugin Name:       Blue Lens Analytics
  * Plugin URI:        https://github.com/Bernard-Ogak/blue_lens_analytics
+ * Update URI:        https://github.com/Bernard-Ogak/blue_lens_analytics
  * Description:       Privacy-first, self-hosted analytics and SEO site audit for WordPress. Cookieless by default, with on-page SEO ideas and Local Ads reporting.
- * Version:           0.5.0
+ * Version:           0.5.1
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            Bernard Ogak (Creative Bay)
@@ -20,7 +21,7 @@ declare( strict_types=1 );
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'BLA_VERSION', '0.5.0' );
+define( 'BLA_VERSION', '0.5.1' );
 define( 'BLA_FILE', __FILE__ );
 define( 'BLA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BLA_URL', plugin_dir_url( __FILE__ ) );

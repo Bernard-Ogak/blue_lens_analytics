@@ -20,7 +20,8 @@ This guide is for site owners and administrators. For code-level details, see [d
 14. [Settings reference](#settings-reference)
 15. [Changing settings](#changing-settings)
 16. [The Status screen](#the-status-screen)
-17. [Troubleshooting](#troubleshooting)
+17. [Updates](#updates)
+18. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -31,7 +32,7 @@ This guide is for site owners and administrators. For code-level details, see [d
 3. WordPress checks each batch, removes anything that looks like personal data, and stores it in Blue Lens's own database tables.
 4. Extra features (links, forms, video, autocapture, heatmaps) live in separate small scripts that load after the page has finished loading, and only when switched on.
 
-Nothing is sent to any third party. Your analytics data never leaves your server.
+No analytics data is sent to any third party; it never leaves your server. The only outside request is a check of GitHub for new versions of the plugin (see [Updates](#updates)), which sends no site or visitor data.
 
 Every hour, Blue Lens adds up the day's activity into daily summaries (in your site's time zone, set under **Settings → General**). The dashboards read those summaries, so they stay fast however much traffic you have. Press **Refresh** in the dashboard to update today's figures immediately.
 
@@ -354,6 +355,12 @@ Invalid values are corrected automatically, and unknown setting names are reject
 ## The Status screen
 
 **Blue Lens → Status** shows: plugin and database versions, whether tracking is on, privacy mode, background jobs (Action Scheduler), sessions and events in the last 24 hours, GeoIP status (with an **Update now** button), a proxy/CDN warning, and whether each database table exists.
+
+## Updates
+
+New versions are published on GitHub. From 0.5.1, Blue Lens checks for them about twice a day and shows them on **Dashboard → Updates** and the **Plugins** screen like any other plugin, so you can update with one click or turn on automatic updates. **View details** shows the release notes. Click **Check again** on **Dashboard → Updates** to look straight away. Sites on 0.5.0 or earlier install 0.5.1 once by uploading its ZIP under **Plugins → Add New Plugin → Upload Plugin**.
+
+The check sends no site or visitor data. To turn it off, add `add_filter( 'blue_lens_github_updates', '__return_false' );` to a small plugin or your theme's `functions.php`.
 
 ## Troubleshooting
 
