@@ -27,6 +27,11 @@ final class Aggregator implements Hookable {
 	public const LAST_RUN_OPTION = 'blue_lens_last_aggregated';
 	public const BACKFILL_OPTION = 'blue_lens_backfill_cursor';
 
+	/**
+	 * Set once every day with site_search events has been summarised into daily_searches.
+	 */
+	public const SEARCH_BACKFILL_OPTION = 'blue_lens_search_backfilled';
+
 	private const BACKFILL_DAYS_PER_RUN = 14;
 	private const CATCH_UP_MAX_DAYS     = 31;
 	private const INSERT_CHUNK          = 250;
@@ -86,8 +91,39 @@ final class Aggregator implements Hookable {
 		$this->aggregate_day( SiteTime::add_days( $today, -1 ) );
 		$this->catch_up( (int) get_option( self::LAST_RUN_OPTION, 0 ), $today );
 		$this->backfill( self::BACKFILL_DAYS_PER_RUN );
+		$this->backfill_searches();
 
 		update_option( self::LAST_RUN_OPTION, time(), false );
+	}
+
+	/**
+	 * One-off: summarises site_search events recorded before daily_searches existed (the main
+	 * back-fill cursor has usually passed those days already).
+	 */
+	public function backfill_searches(): void {
+		global $wpdb;
+
+		if ( get_option( self::SEARCH_BACKFILL_OPTION ) ) {
+			return;
+		}
+
+		$bounds = $wpdb->get_row(
+			$wpdb->prepare( "SELECT MIN(occurred_at) AS first, MAX(occurred_at) AS last FROM %i WHERE event_name = 'site_search'", Tables::name( Tables::EVENTS ) ),
+			ARRAY_A
+		);
+
+		if ( is_array( $bounds ) && ! empty( $bounds['first'] ) ) {
+			$day  = SiteTime::local_day( (string) $bounds['first'] );
+			$last = SiteTime::local_day( (string) $bounds['last'] );
+			for ( $i = 0; $day <= $last && $i < 800; $i++ ) {
+				[ $start, $end ] = SiteTime::utc_bounds( $day, $day );
+				$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE day = %s', Tables::name( Tables::DAILY_SEARCHES ), $day ) );
+				$this->searches( $day, $start, $end );
+				$day = SiteTime::add_days( $day, 1 );
+			}
+		}
+
+		update_option( self::SEARCH_BACKFILL_OPTION, 1, false );
 	}
 
 	/**
@@ -171,7 +207,7 @@ final class Aggregator implements Hookable {
 
 		[ $start, $end ] = SiteTime::utc_bounds( $day, $day );
 
-		foreach ( [ Tables::DAILY_TRAFFIC, Tables::DAILY_DIMENSIONS, Tables::DAILY_CONTENT, Tables::DAILY_EVENTS ] as $table ) {
+		foreach ( [ Tables::DAILY_TRAFFIC, Tables::DAILY_DIMENSIONS, Tables::DAILY_CONTENT, Tables::DAILY_EVENTS, Tables::DAILY_SEARCHES ] as $table ) {
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE day = %s', Tables::name( $table ), $day ) );
 		}
 
@@ -179,6 +215,7 @@ final class Aggregator implements Hookable {
 		$this->session_dimensions( $day, $start, $end );
 		$this->content( $day, $start, $end );
 		$this->events( $day, $start, $end );
+		$this->searches( $day, $start, $end );
 
 		/**
 		 * Fires after a day's summaries are rebuilt.
@@ -437,5 +474,96 @@ final class Aggregator implements Hookable {
 				$end
 			)
 		);
+	}
+
+	/**
+	 * Daily search terms from site_search events.
+	 *
+	 * Terms are normalised (lower case, single spaces) so "Masai Mara" and "masai  mara" count
+	 * together. Events whose term was dropped by the PII scrubber are skipped.
+	 *
+	 * @param string $day   Day.
+	 * @param string $start UTC start.
+	 * @param string $end   UTC end.
+	 */
+	private function searches( string $day, string $start, string $end ): void {
+		global $wpdb;
+
+		$events = (array) $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT session_id, attributes FROM %i WHERE event_name = 'site_search' AND occurred_at >= %s AND occurred_at < %s",
+				Tables::name( Tables::EVENTS ),
+				$start,
+				$end
+			),
+			ARRAY_A
+		);
+
+		$terms = [];
+		foreach ( $events as $event ) {
+			$attributes = json_decode( (string) $event['attributes'], true );
+			$attributes = is_array( $attributes ) ? $attributes : [];
+			$term       = self::normalize_term( $attributes['query'] ?? '' );
+			if ( '' === $term ) {
+				continue;
+			}
+
+			$key = md5( $term, true );
+			if ( ! isset( $terms[ $key ] ) ) {
+				$terms[ $key ] = [
+					'term'      => $term,
+					'searches'  => 0,
+					'sessions'  => [],
+					'zero'      => 0,
+					'total'     => 0,
+					'counted'   => 0,
+					'results'   => 0,
+					'form'      => 0,
+					'live'      => 0,
+				];
+			}
+			$t = &$terms[ $key ];
+			++$t['searches'];
+			$t['sessions'][ (int) $event['session_id'] ] = true;
+
+			$has_count = isset( $attributes['results'] ) && is_numeric( $attributes['results'] );
+			if ( $has_count ) {
+				++$t['counted'];
+				$t['total'] += max( 0, (int) $attributes['results'] );
+			}
+			if ( ! empty( $attributes['zero_results'] ) || ( $has_count && 0 === (int) $attributes['results'] ) ) {
+				++$t['zero'];
+			}
+
+			$source = (string) ( $attributes['source'] ?? 'results_page' );
+			++$t[ in_array( $source, [ 'form', 'live' ], true ) ? $source : 'results' ];
+			unset( $t );
+		}
+
+		$table = Tables::name( Tables::DAILY_SEARCHES );
+		foreach ( array_chunk( $terms, self::INSERT_CHUNK, true ) as $chunk ) {
+			$placeholders = [];
+			$values       = [];
+			foreach ( $chunk as $hash => $t ) {
+				$placeholders[] = '(%s, %s, %s, %d, %d, %d, %d, %d, %d, %d, %d)';
+				array_push( $values, $day, $hash, $t['term'], $t['searches'], count( $t['sessions'] ), $t['zero'], $t['total'], $t['counted'], $t['results'], $t['form'], $t['live'] );
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders are fixed strings.
+			$wpdb->query( $wpdb->prepare( "INSERT INTO %i (day, term_hash, term, searches, sessions, zero_results, results_total, results_counted, source_results_page, source_form, source_live) VALUES " . implode( ', ', $placeholders ), $table, ...$values ) );
+		}
+	}
+
+	/**
+	 * Normalised search term: trimmed, lower case, single spaces, at most 191 characters.
+	 *
+	 * @param mixed $term Raw term.
+	 */
+	public static function normalize_term( mixed $term ): string {
+		if ( ! is_scalar( $term ) ) {
+			return '';
+		}
+		$term = trim( (string) preg_replace( '/\s+/u', ' ', wp_strip_all_tags( (string) $term ) ) );
+
+		return mb_substr( mb_strtolower( $term ), 0, 191 );
 	}
 }

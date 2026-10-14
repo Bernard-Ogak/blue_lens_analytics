@@ -4,7 +4,7 @@ Tags: analytics, privacy, seo audit, cookieless, heatmap
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.5.1
+Stable tag: 0.5.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -118,6 +118,13 @@ Your data is kept unless you enabled "delete data on uninstall" first.
 9. Settings: the Site audit section, with plain-language explanations.
 
 == Changelog ==
+
+= 0.5.2 =
+* Added: Site search report (Engagement → Site search, Searches with no results): what visitors searched for, how often, how many results they got and where they searched, with CSV export.
+* Added: searches are now also recorded from search and filter forms (mark filter forms with data-bla-search) and from live search boxes, not only from the WordPress search results page.
+* Added: automatic updates. New releases install themselves on every site; return false from the blue_lens_auto_update filter to update by hand.
+* Changed: search and filter forms are no longer counted as form submissions (conversions).
+* Fixed: with the WP Consent API plugin active, pages stopped loading because of an error while registering the visitor cookie.
 
 = 0.5.1 =
 * Added: updates from GitHub. New releases appear on Dashboard → Updates and the Plugins screen like any other plugin update, with one-click and automatic updates. The check sends no site data and can be turned off with the `blue_lens_github_updates` filter.

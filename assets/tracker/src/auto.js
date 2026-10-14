@@ -61,11 +61,123 @@
 
 		var ctx = bl.ctx();
 		if ( ctx.k === 'search' && ctx.sq !== undefined ) {
-			track( 'site_search', { query: ctx.sq, results: ctx.sr, zero_results: ctx.sr === 0 } );
+			track( 'site_search', { query: ctx.sq, results: ctx.sr, zero_results: ctx.sr === 0, source: 'results_page' } );
 		}
 		if ( ctx.k === '404' ) {
 			track( 'page_not_found', { from: referrerSource() } );
 		}
+
+		/* ---- Site search: search/filter forms and live search boxes ------------ */
+
+		// WordPress search (?s=) is reported by the results page above, with its result count.
+		// Everything else is caught here: search forms that filter in place or go elsewhere,
+		// forms marked data-bla-search (filters such as a trip finder) and live search boxes.
+		var SEARCH_NAME = /^(s|q|query|search|keyword|keywords|term|search_query)$/i;
+		var searched = {};
+		var liveTimer = null;
+
+		var searchInput = function ( f ) {
+			var i, el;
+			for ( i = 0; i < f.elements.length; i++ ) {
+				el = f.elements[ i ];
+				if ( el.tagName === 'INPUT' && ( el.type === 'search' || ( el.type === 'text' && SEARCH_NAME.test( el.name || '' ) ) ) ) {
+					return el;
+				}
+			}
+			return null;
+		};
+
+		var isSearchForm = function ( f ) {
+			return !! f && f.tagName === 'FORM' && ( f.hasAttribute( 'data-bla-search' ) || matches( f, '[role="search"],.search-form,.searchform' ) || !! searchInput( f ) );
+		};
+
+		var toWpResults = function ( f ) {
+			var a = parseUrl( f.getAttribute( 'action' ) || loc.href );
+			return !! a && a.hostname === loc.hostname && !! f.querySelector( '[name="s"]' ) && String( f.method || 'get' ).toLowerCase() === 'get';
+		};
+
+		// Chosen filter values ("Country: Kenya"), never free-text fields other than the search box.
+		var filtersOf = function ( f ) {
+			var out = [];
+			var i, el, val, name, opt;
+			for ( i = 0; i < f.elements.length && out.length < 10; i++ ) {
+				el = f.elements[ i ];
+				name = String( el.getAttribute( 'aria-label' ) || el.name || '' ).replace( /[_\-[\]]+/g, ' ' ).trim();
+				val = '';
+				if ( el.tagName === 'SELECT' && el.selectedIndex > -1 && el.value !== '' ) {
+					opt = el.options[ el.selectedIndex ];
+					val = opt ? opt.text : el.value;
+				} else if ( el.tagName === 'INPUT' && ( el.type === 'radio' || el.type === 'checkbox' ) && el.checked ) {
+					val = el.value;
+				} else if ( el.tagName === 'INPUT' && /^(date|number|month|week)$/.test( el.type ) && el.value ) {
+					val = el.value;
+				}
+				val = scrub( val ).replace( /\s+/g, ' ' ).trim().slice( 0, 60 );
+				if ( val ) {
+					out.push( ( name ? name.slice( 0, 30 ) + ': ' : '' ) + val );
+				}
+			}
+			return out;
+		};
+
+		var sendSearch = function ( term, source, extra ) {
+			term = scrub( term ).replace( /\s+/g, ' ' ).trim().slice( 0, 100 );
+			var key = term.toLowerCase();
+			if ( term.length < 2 || searched[ key ] ) {
+				return;
+			}
+			searched[ key ] = 1;
+			var props = { query: term, source: source };
+			Object.keys( extra || {} ).forEach( function ( k ) {
+				props[ k ] = extra[ k ];
+			} );
+			track( 'site_search', props );
+		};
+
+		// Bubble phase, so a form whose submit is handled in-page (preventDefault) is told apart
+		// from one that loads the WordPress results page.
+		d.addEventListener( 'submit', function ( e ) {
+			var f = e.target;
+			if ( ! isSearchForm( f ) || ( toWpResults( f ) && ! e.defaultPrevented ) ) {
+				return;
+			}
+			clearTimeout( liveTimer );
+			var box = searchInput( f );
+			var filters = f.hasAttribute( 'data-bla-search' ) ? filtersOf( f ) : [];
+			var term = box && box.value ? box.value : filters.map( function ( v ) {
+				return v.replace( /^[^:]*: /, '' );
+			} ).join( ' · ' );
+			var extra = { form: String( f.getAttribute( 'data-bla-search' ) || f.id || f.getAttribute( 'aria-label' ) || 'search' ).slice( 0, 40 ) };
+			if ( filters.length ) {
+				extra.filters = filters;
+			}
+			sendSearch( term || '(all)', 'form', extra );
+			bl.flush();
+		} );
+
+		// Live search boxes (results update while typing): the term once the visitor pauses.
+		var liveBox = function ( el ) {
+			return el && el.tagName === 'INPUT' && ( el.type === 'search' || el.hasAttribute( 'data-bla-search-input' ) ) && ! ( el.form && toWpResults( el.form ) );
+		};
+		d.addEventListener( 'input', function ( e ) {
+			var el = e.target;
+			if ( ! liveBox( el ) ) {
+				return;
+			}
+			clearTimeout( liveTimer );
+			liveTimer = setTimeout( function () {
+				sendSearch( el.value, 'live', {} );
+			}, 1500 );
+		}, true );
+		d.addEventListener( 'focusout', function ( e ) {
+			if ( liveBox( e.target ) && e.target.value ) {
+				clearTimeout( liveTimer );
+				sendSearch( e.target.value, 'live', {} );
+			}
+		}, true );
+		bl.on( 'page', function () {
+			searched = {};
+		} );
 
 		/* ---- Links, contact, downloads, CTAs ---------------------------------- */
 
@@ -179,7 +291,8 @@
 			d.addEventListener( 'focusin', function ( e ) {
 				var el = e.target;
 				var f = el && el.form;
-				if ( ! f || SKIP.test( el.type || '' ) ) {
+				// Search and filter forms are reported as site_search, not as form funnels.
+				if ( ! f || SKIP.test( el.type || '' ) || isSearchForm( f ) ) {
 					return;
 				}
 				var s = stateFor( f );
@@ -192,6 +305,9 @@
 			}, true );
 
 			d.addEventListener( 'submit', function ( e ) {
+				if ( isSearchForm( e.target ) ) {
+					return;
+				}
 				var s = stateFor( e.target );
 				s.submitted = true;
 				// Supported plugins report successful submissions server-side; plain HTML forms are counted here.

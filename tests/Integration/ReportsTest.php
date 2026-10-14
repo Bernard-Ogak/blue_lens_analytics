@@ -104,6 +104,47 @@ final class ReportsTest extends WP_UnitTestCase {
 		$this->assertSame( 1.0, $t['engagement_rate'] );
 	}
 
+	public function test_search_terms_are_summarised_per_day(): void {
+		$noon     = ( new \DateTimeImmutable( $this->today . ' 12:00:00', wp_timezone() ) )->getTimestamp();
+		$searches = [
+			[ '41.1.1.1', [ 'query' => 'Masai Mara', 'results' => 8, 'zero_results' => false, 'source' => 'results_page' ] ],
+			[ '81.2.2.2', [ 'query' => 'masai   mara', 'source' => 'live' ] ],
+			[ '92.3.3.3', [ 'query' => 'Kayaking Lake Victoria', 'results' => 0, 'zero_results' => true, 'source' => 'results_page' ] ],
+			[ '92.3.3.3', [ 'query' => 'Ethiopia · 2 travellers', 'source' => 'form', 'form' => 'trip-finder', 'filters' => [ 'destination: Ethiopia', 'travelers: 2 travellers' ] ] ],
+		];
+		foreach ( $searches as $i => [ $ip, $attributes ] ) {
+			$this->collector->collect(
+				[
+					'u' => home_url( '/?s=x' ),
+					'c' => [ 'k' => 'search' ],
+					'e' => [ [ 'n' => 'site_search', 'a' => $attributes ] ],
+				],
+				new RequestContext( $ip, self::UA, false, false, '', 'KE', $noon + $i * 60 )
+			);
+		}
+		$this->aggregator->aggregate_day( $this->today );
+
+		$report = $this->reports->search( $this->today, $this->today, 10 );
+
+		$this->assertSame( 4, $report['totals']['searches'] );
+		$this->assertSame( 3, $report['totals']['terms'], 'Case and spacing variants count as one term.' );
+		$this->assertSame( 1, $report['totals']['zero_results'] );
+
+		$top = $report['terms'][0];
+		$this->assertSame( 'masai mara', $top['term'] );
+		$this->assertSame( 2, $top['searches'] );
+		$this->assertSame( 1, $top['results_page'] );
+		$this->assertSame( 1, $top['live'] );
+		$this->assertSame( 8.0, (float) $top['avg_results'] );
+
+		$this->assertSame( [ 'kayaking lake victoria' ], array_column( $report['no_results'], 'term' ) );
+
+		// Rebuilding the day gives the same numbers.
+		$this->aggregator->aggregate_day( $this->today );
+		wp_cache_flush();
+		$this->assertSame( 4, $this->reports->search( $this->today, $this->today, 10 )['totals']['searches'] );
+	}
+
 	public function test_aggregation_is_idempotent(): void {
 		$this->seed_today();
 		$this->aggregator->aggregate_day( $this->today );

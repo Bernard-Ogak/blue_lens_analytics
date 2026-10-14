@@ -69,7 +69,7 @@ final class Retention implements Hookable {
 		if ( $aggregate_months > 0 ) {
 			$cutoff_day = wp_date( 'Y-m-d', (int) strtotime( "-{$aggregate_months} months" ) );
 
-			foreach ( [ Tables::DAILY_TRAFFIC, Tables::DAILY_DIMENSIONS, Tables::DAILY_CONTENT, Tables::DAILY_EVENTS, Tables::HEATMAP_DAILY, Tables::CRAWLER_DAILY ] as $table ) {
+			foreach ( [ Tables::DAILY_TRAFFIC, Tables::DAILY_DIMENSIONS, Tables::DAILY_CONTENT, Tables::DAILY_EVENTS, Tables::DAILY_SEARCHES, Tables::HEATMAP_DAILY, Tables::CRAWLER_DAILY ] as $table ) {
 				$deleted[ $table ] = $this->delete_batches( $table, 'day', (string) $cutoff_day, $budget );
 			}
 		}

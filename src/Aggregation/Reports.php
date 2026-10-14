@@ -330,6 +330,89 @@ final class Reports {
 	}
 
 	/**
+	 * What visitors searched for: totals, top terms and terms that found nothing.
+	 *
+	 * @param string $from  First day.
+	 * @param string $to    Last day.
+	 * @param int    $limit Rows per list.
+	 * @return array{totals: array<string, int|float|null>, terms: list<array<string, mixed>>, no_results: list<array<string, mixed>>}
+	 */
+	public function search( string $from, string $to, int $limit = 50 ): array {
+		return $this->cached(
+			[ 'search', $from, $to, $limit ],
+			$to,
+			function () use ( $from, $to, $limit ): array {
+				global $wpdb;
+
+				$table = Tables::name( Tables::DAILY_SEARCHES );
+
+				$totals = (array) $wpdb->get_row(
+					$wpdb->prepare(
+						'SELECT COALESCE(SUM(searches), 0) AS searches, COUNT(DISTINCT term_hash) AS terms, COALESCE(SUM(zero_results), 0) AS zero_results,
+						COALESCE(SUM(results_total), 0) AS results_total, COALESCE(SUM(results_counted), 0) AS results_counted,
+						COALESCE(SUM(source_results_page), 0) AS source_results_page, COALESCE(SUM(source_form), 0) AS source_form, COALESCE(SUM(source_live), 0) AS source_live
+						FROM %i WHERE day BETWEEN %s AND %s',
+						$table,
+						$from,
+						$to
+					),
+					ARRAY_A
+				);
+
+				$query = 'SELECT MAX(term) AS term, SUM(searches) AS searches, SUM(sessions) AS sessions, SUM(zero_results) AS zero_results,
+					SUM(results_total) AS results_total, SUM(results_counted) AS results_counted,
+					SUM(source_results_page) AS source_results_page, SUM(source_form) AS source_form, SUM(source_live) AS source_live, MAX(day) AS last_day
+					FROM %i WHERE day BETWEEN %s AND %s GROUP BY term_hash';
+
+				// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- $query is a fixed string.
+				$terms = (array) $wpdb->get_results( $wpdb->prepare( $query . ' ORDER BY searches DESC, last_day DESC LIMIT %d', $table, $from, $to, $limit ), ARRAY_A );
+				$zero  = (array) $wpdb->get_results( $wpdb->prepare( $query . ' HAVING zero_results > 0 ORDER BY zero_results DESC, last_day DESC LIMIT %d', $table, $from, $to, $limit ), ARRAY_A );
+				// phpcs:enable
+
+				$searches = (int) ( $totals['searches'] ?? 0 );
+				$counted  = (int) ( $totals['results_counted'] ?? 0 );
+
+				return [
+					'totals'     => [
+						'searches'          => $searches,
+						'terms'             => (int) ( $totals['terms'] ?? 0 ),
+						'zero_results'      => (int) ( $totals['zero_results'] ?? 0 ),
+						'zero_results_rate' => $searches ? round( (int) $totals['zero_results'] / $searches, 4 ) : 0.0,
+						'avg_results'       => $counted ? round( (int) $totals['results_total'] / $counted, 1 ) : null,
+						'results_page'      => (int) ( $totals['source_results_page'] ?? 0 ),
+						'form'              => (int) ( $totals['source_form'] ?? 0 ),
+						'live'              => (int) ( $totals['source_live'] ?? 0 ),
+					],
+					'terms'      => array_map( [ self::class, 'search_row' ], $terms ),
+					'no_results' => array_map( [ self::class, 'search_row' ], $zero ),
+				];
+			}
+		);
+	}
+
+	/**
+	 * One search-term row for the API.
+	 *
+	 * @param array<string, mixed> $r Database row.
+	 * @return array<string, mixed>
+	 */
+	private static function search_row( array $r ): array {
+		$counted = (int) $r['results_counted'];
+
+		return [
+			'term'         => (string) $r['term'],
+			'searches'     => (int) $r['searches'],
+			'sessions'     => (int) $r['sessions'],
+			'zero_results' => (int) $r['zero_results'],
+			'avg_results'  => $counted ? round( (int) $r['results_total'] / $counted, 1 ) : null,
+			'results_page' => (int) $r['source_results_page'],
+			'form'         => (int) $r['source_form'],
+			'live'         => (int) $r['source_live'],
+			'last_day'     => (string) $r['last_day'],
+		];
+	}
+
+	/**
 	 * Live activity from raw data: last 5 minutes for "now", last 30 for trends.
 	 *
 	 * @return array<string, mixed>

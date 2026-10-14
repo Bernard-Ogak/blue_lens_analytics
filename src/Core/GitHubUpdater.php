@@ -33,6 +33,29 @@ final class GitHubUpdater implements Hookable {
 	public function register_hooks(): void {
 		add_filter( 'update_plugins_github.com', [ $this, 'check' ], 10, 3 );
 		add_filter( 'plugins_api', [ $this, 'details' ], 20, 3 );
+		add_filter( 'auto_update_plugin', [ $this, 'auto_update' ], 10, 2 );
+	}
+
+	/**
+	 * Installs new releases automatically on every site (WordPress's background updater, twice a
+	 * day), so all sites running Blue Lens stay on the latest release without anyone clicking
+	 * "Update". Return false from blue_lens_auto_update to manage updates by hand instead.
+	 *
+	 * @param bool|null $update Whether to update, as decided so far (includes the site's own setting).
+	 * @param object    $item   Update offer; ->plugin is the plugin basename.
+	 * @return bool|null
+	 */
+	public function auto_update( mixed $update, object $item ): mixed {
+		if ( ! isset( $item->plugin ) || plugin_basename( BLA_FILE ) !== $item->plugin ) {
+			return $update;
+		}
+
+		/**
+		 * Filters whether Blue Lens installs its own updates automatically.
+		 *
+		 * @param bool $auto Default true.
+		 */
+		return (bool) apply_filters( 'blue_lens_auto_update', true );
 	}
 
 	/**

@@ -153,6 +153,17 @@ final class ReportsController implements Hookable {
 
 		register_rest_route(
 			$ns,
+			'/reports/search',
+			[
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => fn( WP_REST_Request $r ) => $this->respond( $r, fn( string $from, string $to ) => $this->reports->search( $from, $to, 50 ) ),
+				'permission_callback' => $view,
+				'args'                => $range,
+			]
+		);
+
+		register_rest_route(
+			$ns,
 			'/reports/crawlers',
 			[
 				'methods'             => WP_REST_Server::READABLE,

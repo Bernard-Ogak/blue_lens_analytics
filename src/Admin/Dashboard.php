@@ -319,6 +319,10 @@ final class Dashboard implements Hookable {
 				$keys = [ 'event', 'category', 'events', 'sessions', 'value', 'is_conversion' ];
 				return [ $keys, array_map( static fn( array $r ): array => array_map( static fn( string $k ) => $r[ $k ], $keys ), $this->reports->events( $from, $to )['rows'] ) ];
 
+			case 'search':
+				$keys = [ 'term', 'searches', 'sessions', 'zero_results', 'avg_results', 'results_page', 'form', 'live', 'last_day' ];
+				return [ $keys, array_map( static fn( array $r ): array => array_map( static fn( string $k ) => $r[ $k ] ?? '', $keys ), $this->reports->search( $from, $to, 5000 )['terms'] ) ];
+
 			case 'local_ads':
 				$data = $this->local_ads->report( $from, $to );
 				$keys = [ 'ad_id', 'name', 'campaign', 'status', 'impressions', 'clicks', 'ctr' ];

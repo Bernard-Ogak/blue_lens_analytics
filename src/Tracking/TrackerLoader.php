@@ -256,7 +256,7 @@ final class TrackerLoader implements Hookable {
 			'statistics',
 			__( '13 months', 'blue-lens-analytics' ),
 			__( 'Recognises returning visitors. Set only after statistics consent, and only when enhanced mode is enabled.', 'blue-lens-analytics' ),
-			false,
+			'', // $collected_personal_data is typed string: false threw a TypeError under strict_types.
 			false,
 			false
 		);

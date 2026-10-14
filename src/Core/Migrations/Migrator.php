@@ -50,6 +50,7 @@ final class Migrator {
 			new Migration003Heatmaps(),
 			new Migration004Aggregates(),
 			new Migration005SiteAudit(),
+			new Migration006SiteSearch(),
 		];
 
 		/**

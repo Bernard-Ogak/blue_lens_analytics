@@ -381,6 +381,8 @@
 		],
 		engagement: [
 			{ id: 'summary', label: __( 'Interaction summary', 'blue-lens-analytics' ), span: 12 },
+			{ id: 'search', label: __( 'Site search', 'blue-lens-analytics' ), span: 12 },
+			{ id: 'search_zero', label: __( 'Searches with no results', 'blue-lens-analytics' ), span: 12 },
 			{ id: 'events_table', label: __( 'All events', 'blue-lens-analytics' ), span: 12 },
 		],
 		ads: [
@@ -1258,8 +1260,71 @@
 		);
 	}
 
+	/**
+	 * What visitors searched for (Engagement → Site search / Searches with no results).
+	 * Terms come from the WordPress search results page, search and filter forms, and live
+	 * search boxes; "no results" terms show content visitors expected but did not find.
+	 */
+	function SiteSearchCard( { mode, result, range } ) {
+		const d = result.data;
+		const zero = mode === 'search_zero';
+		const rows = d ? ( zero ? d.no_results : d.terms ) : [];
+		const t = d ? d.totals : null;
+		const where = ( r ) =>
+			[
+				r.results_page && __( 'Search page', 'blue-lens-analytics' ),
+				r.form && __( 'Search form', 'blue-lens-analytics' ),
+				r.live && __( 'Live search', 'blue-lens-analytics' ),
+			]
+				.filter( Boolean )
+				.map( ( label ) => h( 'span', { className: 'bla-chip', key: label }, label ) );
+
+		return h(
+			Card,
+			{
+				title: zero ? __( 'Searches with no results', 'blue-lens-analytics' ) : __( 'Site search', 'blue-lens-analytics' ),
+				sub: zero
+					? __( 'What visitors looked for and did not find — ideas for new pages', 'blue-lens-analytics' )
+					: __( 'What visitors searched for on your site', 'blue-lens-analytics' ),
+				span: 12,
+				actions: ! zero && rows.length > 0 && h( IconButton, { icon: 'download', label: __( 'Export CSV', 'blue-lens-analytics' ), href: exportUrl( 'search', '', range ) } ),
+			},
+			result.error && ! d && h( ErrorBox, { message: result.error } ),
+			! zero &&
+				t &&
+				t.searches > 0 &&
+				h(
+					'div',
+					{ className: 'bla-stats', style: { marginBottom: 16 } },
+					h( 'div', { className: 'bla-stat' }, h( 'div', { className: 'bla-stat__label' }, h( Icon, { name: 'search', size: 14 } ), ' ', __( 'Searches', 'blue-lens-analytics' ) ), h( 'div', { className: 'bla-stat__value' }, fmt.number( t.searches ) ) ),
+					h( 'div', { className: 'bla-stat' }, h( 'div', { className: 'bla-stat__label' }, __( 'Different terms', 'blue-lens-analytics' ) ), h( 'div', { className: 'bla-stat__value' }, fmt.number( t.terms ) ) ),
+					h( 'div', { className: 'bla-stat' }, h( 'div', { className: 'bla-stat__label' }, __( 'No results', 'blue-lens-analytics' ) ), h( 'div', { className: 'bla-stat__value' }, fmt.percent( t.zero_results_rate ) ), h( 'div', { className: 'bla-stat__sub' }, sprintf( /* translators: %s: number of searches. */ __( '%s searches', 'blue-lens-analytics' ), fmt.number( t.zero_results ) ) ) ),
+					h( 'div', { className: 'bla-stat' }, h( 'div', { className: 'bla-stat__label' }, __( 'Average results', 'blue-lens-analytics' ) ), h( 'div', { className: 'bla-stat__value' }, t.avg_results === null ? '—' : fmt.number( t.avg_results ) ), h( 'div', { className: 'bla-stat__sub' }, __( 'Search results page only', 'blue-lens-analytics' ) ) )
+				),
+			rows.length
+				? h( C.DataTable, {
+					caption: zero ? __( 'Searches with no results', 'blue-lens-analytics' ) : __( 'Search terms', 'blue-lens-analytics' ),
+					shareKey: mode,
+					rows,
+					rowKey: ( r ) => r.term,
+					columns: [
+						{ key: 'term', label: __( 'Search term', 'blue-lens-analytics' ) },
+						{ key: 'searches', label: __( 'Searches', 'blue-lens-analytics' ), num: true, format: fmt.number },
+						{ key: 'sessions', label: __( 'Visits', 'blue-lens-analytics' ), num: true, format: fmt.number },
+						zero
+							? { key: 'zero_results', label: __( 'No results', 'blue-lens-analytics' ), num: true, format: fmt.number }
+							: { key: 'avg_results', label: __( 'Avg. results', 'blue-lens-analytics' ), num: true, format: ( v ) => ( v === null ? '—' : fmt.number( v ) ), sortValue: ( r ) => ( r.avg_results === null ? -1 : r.avg_results ) },
+						{ key: 'where', label: __( 'Where', 'blue-lens-analytics' ), render: where, sortValue: ( r ) => r.results_page + r.form + r.live },
+						{ key: 'last_day', label: __( 'Last searched', 'blue-lens-analytics' ) },
+					],
+				} )
+				: h( Empty, zero ? { title: __( 'No searches without results in this period', 'blue-lens-analytics' ), icon: 'search' } : null )
+		);
+	}
+
 	function EngagementPage( { range, refreshKey, prefs } ) {
 		const { data, error, loading } = useApi( '/reports/events', { from: range.from, to: range.to }, refreshKey );
+		const search = useApi( '/reports/search', { from: range.from, to: range.to }, refreshKey );
 		const allRows = data ? data.rows : [];
 		const rows = allRows.filter( ( r ) => r.event !== 'page_engagement' ); // Internal reading-time updates.
 		const count = ( n ) => ( rows.find( ( r ) => r.event === n ) || { events: 0 } ).events;
@@ -1303,6 +1368,9 @@
 								stat( __( '404 pages', 'blue-lens-analytics' ), fmt.number( count( 'page_not_found' ) ), __( 'Broken links visited', 'blue-lens-analytics' ), 'alert' )
 							)
 						);
+					}
+					if ( w.id === 'search' || w.id === 'search_zero' ) {
+						return h( SiteSearchCard, { key: w.id, mode: w.id, result: search, range } );
 					}
 					if ( w.id === 'events_table' ) {
 						return h(

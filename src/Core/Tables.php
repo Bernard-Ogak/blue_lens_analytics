@@ -32,6 +32,7 @@ final class Tables {
 	public const DAILY_DIMENSIONS = 'daily_dimensions';
 	public const DAILY_CONTENT    = 'daily_content';
 	public const DAILY_EVENTS     = 'daily_events';
+	public const DAILY_SEARCHES   = 'daily_searches';
 
 	public const AUDIT_RUNS  = 'audit_runs';
 	public const AUDIT_PAGES = 'audit_pages';
@@ -66,6 +67,7 @@ final class Tables {
 			self::DAILY_DIMENSIONS,
 			self::DAILY_CONTENT,
 			self::DAILY_EVENTS,
+			self::DAILY_SEARCHES,
 			self::AUDIT_RUNS,
 			self::AUDIT_PAGES,
 		];

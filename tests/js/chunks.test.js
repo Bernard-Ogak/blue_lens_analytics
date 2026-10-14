@@ -71,7 +71,7 @@ describe( 'page-level events', () => {
 		const { events, flushAll } = boot( { chunks: [ 'auto' ], ctx: { k: 'search', sq: 'gorilla trek', sr: 0 } } );
 		flushAll();
 
-		expect( events().find( ( e ) => e.n === 'site_search' ).a ).toEqual( { query: 'gorilla trek', results: 0, zero_results: true } );
+		expect( events().find( ( e ) => e.n === 'site_search' ).a ).toEqual( { query: 'gorilla trek', results: 0, zero_results: true, source: 'results_page' } );
 	} );
 
 	test( '404 pages report where the visitor came from', () => {
@@ -87,7 +87,7 @@ describe( 'forms', () => {
 		<div class="wpcf7"><form id="cf" class="wpcf7-form"><input type="hidden" name="_wpcf7" value="42">
 			<input name="your-name"><input name="arrival" type="date"><input name="your-email" type="email">
 			<input type="password" name="pw"><button type="submit">Send</button></form></div>
-		<form id="plain"><input name="q"><button type="submit">Go</button></form>`;
+		<form id="plain"><input name="message"><button type="submit">Go</button></form>`;
 
 	test( 'start and abandon carry field names only, never values', () => {
 		const { w, events, flushAll } = boot( { body, chunks: [ 'auto' ], cfg: { ac: 0, hm: 0 } } );
@@ -123,6 +123,75 @@ describe( 'forms', () => {
 		expect( submits ).toHaveLength( 1 );
 		expect( submits[ 0 ].ei ).toBe( 'html:plain' );
 		expect( names( events ) ).not.toContain( 'form_abandon' );
+	} );
+} );
+
+describe( 'site search', () => {
+	const body = `
+		<form id="wp" role="search" action="/" method="get"><input type="search" name="s"><button type="submit">Search</button></form>
+		<form id="finder" data-bla-search="trip-finder" action="/itineraries/">
+			<select name="destination"><option value="">Any</option><option value="mara">Masai Mara</option></select>
+			<select name="travelers"><option value="">Any</option><option value="2">2 travellers</option></select>
+			<input name="your-email" value="jane@example.com"><button type="submit">Search</button></form>
+		<input id="live" type="search" aria-label="Search articles">`;
+
+	const submit = ( w, sel ) => w.document.querySelector( sel ).dispatchEvent( new w.Event( 'submit', { bubbles: true, cancelable: true } ) );
+
+	test( 'filter forms report chosen options, never free-text fields, and are not counted as form submits', () => {
+		const { w, events, flushAll } = boot( { body, chunks: [ 'auto' ], cfg: { ac: 0, hm: 0 } } );
+		w.document.querySelector( '[name="destination"]' ).value = 'mara';
+		w.document.querySelector( '[name="travelers"]' ).value = '2';
+		w.document.querySelector( '[name="destination"]' ).dispatchEvent( new w.FocusEvent( 'focusin', { bubbles: true } ) );
+		w.document.addEventListener( 'submit', ( e ) => e.preventDefault() );
+		submit( w, '#finder' );
+		flushAll();
+
+		const search = events().find( ( e ) => e.n === 'site_search' );
+		expect( search.a ).toEqual( {
+			query: 'Masai Mara · 2 travellers',
+			source: 'form',
+			form: 'trip-finder',
+			filters: [ 'destination: Masai Mara', 'travelers: 2 travellers' ],
+		} );
+		expect( JSON.stringify( events() ) ).not.toContain( 'jane' );
+		expect( names( events ) ).not.toContain( 'form_submit' );
+		expect( names( events ) ).not.toContain( 'form_start' );
+	} );
+
+	test( 'a WordPress search form that loads the results page is left to that page', () => {
+		const { w, events, flushAll } = boot( { body, chunks: [ 'auto' ], cfg: { ac: 0, hm: 0 } } );
+		w.document.querySelector( '#wp [name="s"]' ).value = 'lion';
+		submit( w, '#wp' );
+		flushAll();
+
+		expect( names( events ) ).not.toContain( 'site_search' );
+	} );
+
+	test( 'the same WordPress form handled in the page (preventDefault) is reported here', () => {
+		const { w, events, flushAll } = boot( { body, chunks: [ 'auto' ], cfg: { ac: 0, hm: 0 } } );
+		w.document.querySelector( '#wp' ).addEventListener( 'submit', ( e ) => e.preventDefault() );
+		w.document.querySelector( '#wp [name="s"]' ).value = '  Lion   cubs ';
+		submit( w, '#wp' );
+		flushAll();
+
+		expect( events().find( ( e ) => e.n === 'site_search' ).a ).toMatchObject( { query: 'Lion cubs', source: 'form' } );
+	} );
+
+	test( 'live search boxes report the term once the visitor pauses, once per term', () => {
+		const { w, events, flushAll } = boot( { body, chunks: [ 'auto' ], cfg: { ac: 0, hm: 0 } } );
+		const box = w.document.querySelector( '#live' );
+		[ 'mi', 'migr', 'migration' ].forEach( ( v ) => {
+			box.value = v;
+			box.dispatchEvent( new w.Event( 'input', { bubbles: true } ) );
+			jest.advanceTimersByTime( 400 );
+		} );
+		jest.advanceTimersByTime( 1600 );
+		box.dispatchEvent( new w.FocusEvent( 'focusout', { bubbles: true } ) );
+		flushAll();
+
+		const searches = events().filter( ( e ) => e.n === 'site_search' );
+		expect( searches ).toHaveLength( 1 );
+		expect( searches[ 0 ].a ).toEqual( { query: 'migration', source: 'live' } );
 	} );
 } );
 

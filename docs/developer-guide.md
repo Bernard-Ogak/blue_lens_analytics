@@ -83,6 +83,23 @@ BlueLens.track( 'booking_enquiry', {
 } );
 ```
 
+### Site search
+
+`site_search` events are sent automatically, with `query` and `source`:
+
+- `results_page`: the WordPress search results page (`?s=`), with `results` and `zero_results`.
+- `form`: a search form that is handled in the page or sends visitors elsewhere, detected by `role="search"`, `.search-form`, a `type="search"` box or a text box named `s`, `q`, `query`, `search`, `keyword`, `keywords`, `term` or `search_query`. Mark filter forms without a text box with `data-bla-search="your-name"`: the chosen select, radio, checkbox and date values are sent as `filters` (`"destination: Masai Mara"`), and joined into `query`. Other text fields are never sent.
+- `live`: a box that filters while typing (`type="search"` or `data-bla-search-input`), sent once the visitor pauses for 1.5 s or leaves the box.
+
+```html
+<form action="/tours/" data-bla-search="trip-finder">
+	<select name="destination">…</select>
+	<select name="travelers">…</select>
+</form>
+```
+
+Search and filter forms are not reported as `form_start`, `form_abandon` or `form_submit`.
+
 ## PHP API
 
 ```php
@@ -128,6 +145,7 @@ Namespace `blue-lens/v1`.
 | `/reports/dimension` | GET | `view_blue_lens_reports` | Top values of a session dimension (`channel`, `source`, `medium`, `campaign`, `referrer`, `landing_page`, `country`, `region`, `city`, `device`, `browser`, `os`, `language`, `viewport`, `visitor_type`) |
 | `/reports/content` | GET | `view_blue_lens_reports` | `group` = `page`, `post_type`, `author`, `age` or `tax:{taxonomy}` |
 | `/reports/events` | GET | `view_blue_lens_reports` | Event totals |
+| `/reports/search` | GET | `view_blue_lens_reports` | Site search: `totals`, top `terms` and `no_results` terms (50 each) |
 | `/reports/crawlers` | GET | `view_blue_lens_reports` | Crawler hits and 404s |
 | `/reports/heatmap-pages`, `/reports/heatmap` | GET | `view_blue_lens_reports` | Heatmap pages and cells (`device` = `all`, `desktop`, `tablet` or `mobile`) |
 | `/reports/realtime` | GET | `view_blue_lens_reports` | Last 5/30 minutes from raw data |
@@ -142,7 +160,7 @@ Namespace `blue-lens/v1`.
 | `/audit/step` | POST | `manage_blue_lens` | Advances run `run` by about 6 seconds of work; returns progress |
 | `/audit/cancel` | POST | `manage_blue_lens` | Cancels run `run` |
 
-All `/reports/*` routes except `realtime` and `refresh` take `from` and `to` (site-local `Y-m-d`, at most 800 days). CSV export: `admin-post.php?action=blue_lens_export&report=daily,dimension,content,events,local_ads,audit&arg=…&from=…&to=…&_wpnonce=…` (`audit` exports the latest audit's pages and ignores the dates).
+All `/reports/*` routes except `realtime` and `refresh` take `from` and `to` (site-local `Y-m-d`, at most 800 days). CSV export: `admin-post.php?action=blue_lens_export&report=daily,dimension,content,events,search,local_ads,audit&arg=…&from=…&to=…&_wpnonce=…` (`audit` exports the latest audit's pages and ignores the dates).
 
 Cookie-authenticated requests need the `X-WP-Nonce` header (`wp_rest` nonce).
 
@@ -212,6 +230,7 @@ Cookie-authenticated requests need the `X-WP-Nonce` header (`wp_rest` nonce).
 | `blue_lens_audit_site_checks` | Site-wide audit results (code → detail) |
 | `blue_lens_local_ads_tracking` | Whether Local Ads impressions and clicks are recorded (default `true`) |
 | `blue_lens_github_updates` | Whether to check GitHub for new releases (default `true`) |
+| `blue_lens_auto_update` | Whether new releases install automatically (default `true`) |
 
 Example: allow a WPML language domain.
 
@@ -237,6 +256,7 @@ All tables use `{$wpdb->prefix}bla_`. Times are UTC. Binary keys are 16-byte has
 | `bla_daily_dimensions` | Daily session metrics per dimension value | `(day, dimension, value_hash)` |
 | `bla_daily_content` | Daily metrics per page | `(day, path_hash)` |
 | `bla_daily_events` | Daily counts per event | `(day, event_name)` |
+| `bla_daily_searches` | Daily site-search terms (normalised) with no-result counts and source split | `(day, term_hash)` |
 | `bla_audit_runs` | One row per site audit | `status`, `phase`, `health`, `errors`, `warnings`, `notices`, `site_checks`, `summary` (JSON) |
 | `bla_audit_pages` | One row per crawled URL per audit | `(run_id, checked)`, `status_code`, `response_ms`, `word_count`, `inlinks`, `issues` and `facts` (JSON) |
 
@@ -313,5 +333,7 @@ Release checklist: bump the version in the plugin header, `BLA_VERSION`, `readme
 ### Updates from GitHub
 
 `Core\GitHubUpdater` delivers releases to installed sites. The `Update URI: https://github.com/Bernard-Ogak/blue_lens_analytics` header makes WordPress skip WordPress.org for this plugin and call the `update_plugins_github.com` filter instead; the updater answers it, for its own basename only, with the version from the latest release's `tag_name` (leading `v` removed) and the URL of its `blue-lens-analytics.zip` asset. Core compares versions, so an equal version is listed as up to date and automatic updates can be switched on. `plugins_api` is filtered for the slug `blue-lens-analytics` to show the release notes under **View details**.
+
+From 0.5.2 the updater also answers `auto_update_plugin` with `true` for its own basename, so WordPress's background updater installs each new release on every site (twice-daily update check; GitHub responses cached for 12 hours). Return `false` from `blue_lens_auto_update` to update by hand.
 
 The release is read from `https://api.github.com/repos/Bernard-Ogak/blue_lens_analytics/releases/latest` (drafts and pre-releases are never returned) and cached in the site transient `blue_lens_github_release` for 12 hours, or 1 hour after a failure. `?force-check=1` from **Check again** bypasses the cache. Return `false` from `blue_lens_github_updates` to disable the check.

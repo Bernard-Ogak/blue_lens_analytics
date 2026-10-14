@@ -2,6 +2,20 @@
 
 All notable changes to Blue Lens Analytics. The format follows [Keep a Changelog](https://keepachangelog.com/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.5.2] — 2026-10-14
+
+### Added
+- **Site search report** (Engagement → Site search, and Searches with no results). Shows what visitors searched for: searches, different terms, the no-results rate and average results, and per term the searches, visits, average results, where the search happened and the last day searched. Terms are normalised (lower case, single spaces), so "Masai Mara" and "masai  mara" count as one. The no-results list shows content visitors expected and did not find. CSV export (`report=search`). REST: `GET /reports/search`.
+- Search capture beyond the WordPress results page: search forms handled in the page or sent elsewhere (`role="search"`, `.search-form`, a `type="search"` box or a text box named `s`, `q`, `query`, `search`, `keyword`…), filter forms marked `data-bla-search="name"` (chosen select, radio, checkbox and date values are sent as `filters`; other text fields never are) and live search boxes (`type="search"` or `data-bla-search-input`, sent once the visitor pauses for 1.5 s or leaves the box, once per term per page). Each `site_search` event carries `source`: `results_page`, `form` or `live`. A WordPress search form that loads the results page is still counted there only, with its result count.
+- **Automatic updates**: `Core\GitHubUpdater` answers `auto_update_plugin` with `true` for Blue Lens, so new GitHub releases are installed by WordPress's background updater on every site without anyone clicking Update. Return `false` from the new `blue_lens_auto_update` filter to manage updates by hand. Sites on 0.5.1 are offered 0.5.2 as a normal update (one click, or automatic if auto-updates were already switched on there); later releases then install by themselves. Sites on 0.5.0 or earlier have no update check and need the ZIP uploaded once.
+- `bla_daily_searches` table (migration 6), built by the hourly summary job and kept for `retention_aggregate_months`. Searches recorded before the update are summarised on the first run.
+
+### Changed
+- Search and filter forms no longer produce `form_start`, `form_abandon` or `form_submit`, so a site search is not counted as a conversion.
+
+### Fixed
+- Pages stopped rendering with a fatal `TypeError` when the WP Consent API plugin was active: the enhanced-mode cookie was registered with `false` for the `$collected_personal_data` argument, which `wp_add_cookie_info()` types as a string.
+
 ## [0.5.1] — 2026-10-03
 
 ### Added
